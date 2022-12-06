@@ -1,0 +1,15 @@
+Data:
+		* Add checks at datalevel for correct values (no negatives etc.)
+		* Errorhandling
+
+Planning settings:
+		* implement choice to plan as soon as possible, late as possible, or spread even
+		* maximum days of planning ahead
+		* 
+
+Functionality:
+		* Remove old weeks of planning (N weeks before current week)
+		* Identification & Authorisation
+
+Technical
+		* Get the DefaultUserSettings from an configuration file instead of hardcoded

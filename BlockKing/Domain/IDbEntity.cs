@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace BlockKing.Data.Entities
+namespace BlockKing.Data.Domain
 {
     public interface IDbEntity
     {

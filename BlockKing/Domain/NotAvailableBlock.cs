@@ -4,11 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace BlockKing.Data.Entities
+namespace BlockKing.Data.Domain
 {
-    public class Work : IDbEntity
+    internal class NotAvailableBlock
     {
-        public int Id {get; private set;}
-
     }
 }

@@ -4,11 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace BlockKing.Data.Entities
+namespace BlockKing.Data.Domain
 {
-    internal class UserSubjectSetting : IDbEntity
+    internal class BreakBlock
     {
-        public int id { get; private set; }
-
     }
 }
