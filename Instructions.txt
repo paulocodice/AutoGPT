@@ -1,0 +1,128 @@
+Generic description of the software:
+All objects are part of a piece of software that is used to plan and execute work in a way that resembles the pomodori way of planning. 
+The user enters work items to be done with the amount of time it would take and a due date. Work items can exist of multiple parts of work.
+Then the user can ask the system to plan the work for him. The planner divides every day in blocks as set by the user.
+
+This specific code is for the backend and wil make use of entity framework and TSQL for storage.
+Use SOLID principles, KISS, YAGNI and DRY as well as cleancode for this.
+
+Take the following general rules in account: 
+ - All objects need to contain an identifier via an interface, for data identification and storage
+ - All time related functions must store and proces data in UTC. If time related data is going outside the domain model it should have the correct timezone with it.
+ - If the logic of the object is complex you may use helper functions for clearity
+ - Every object should have crud functions if applicable
+ - Every object is specific to an user
+ - All blocks have the same subject as its parentblock(s)
+ - Don't use placeholders for code, generate the actual code
+
+For each folowing # there is an object name and description
+Each > folowing that # is a discription of, or directive for that specific object
+Each + folowing that # is a description of, or directive for a property for that specific object
+Each * following that # is a description of, or directive for a function for that specific object
+There may be an overlap or mix between > and + and * in the resulting code, but follow directives if possible
+You are not restricted to these objects. If you need more to comply to good practices please do so. 
+
+# User
+> Contains the UserSettings
+> contains a single Calendar
++ Name of the user
++ Surname of the user
++ Email adres of the user, this must be validated
+
+# UserSettings
+> Is applicable for one user
+> Must contain available timeslots to execute workitems for every day of a week
+> All defaults can be changed but excisting values wont change with them
++ Planning type
++ The user preferred first day of the week. default is Monday
++ Timezone of the user so time related data can be converted to the users timezone. default is an input parameter
++ Prefered length of blocks in minutes for that user, default is 20
++ Prefered length of a short break in minutes, default is 5
++ prefered length of a long break in minutes, default is 10
++ prefered interval of long breaks in number of blocks between them, default is 3
+
+# Subjects
+> Is a list of subjects for a block of a block
+> Contains only unique subjects
+> has a unique easy to distinguish color
+- Description
+
+# Calendar
+> Contains a single collection of days and belongs to an user
+* function to add a new Day. This cannot excist in the past, be a duplicate date, or be further than one year from now. 
+  Every day between now and the added date must be initialised if it is not already. 
+
+# Day
+> Contains a collection of blocks
+> Can only exist with a Calendar as parent
+> Represents one specific day (as in date) that can not exist twice in the same calendar
+> Contains a list of planning blocks. only planning blocks with due date of this day can be added
+> Contains a list of work blocks. work can only be for this or a later day
++ name of the day
++ number of the week this day belongs to in utc and also accounting the users timezone and first day of week settings 
++ number of days from now
++ available time and timeslots according to the user settings in combination with the workblocks
+* (re)calculate the available time and slots
+
+#Block
+> Is the basetype for all blocks
+> Can only exist with a day as parent
+> Is one of the folowing block types: Undetermined, Plan, Work, Break, Unavailable.
+> Can have a subject
+> Has a priority, default is 0. priority can be positive or negative where positive is higher priority
+
+#PlanBlock
+> Represents one (parent) task for the calendar. 
+> Has a status with the folowing options: New, Planning, Planned, Done. Default is New. This status will be changed accordingly.
+> Can contain a list of other planningblocks, each child has dueDate =< parent dueDate. No more than 3 levels deep
+> Can have a parent PlanBlock
+> Only planblocks without child can be planned. Otherwise their childs will be planned. If all childs are planned this is also planned
+> Can have one or more WorkBlocks to represent a planned task
+> The status is done if all associated Workblocks or childs are done.
+> Is coupled to the day of its duedate, or the same day as its parent
+> Contains the time needed for execution of the task. if nested it contains the sum of its childs
+> May be part of a specific Subject
+> is not bound by length of blocks
++ Description
++ Notes
++ PlanTiming. This can be Early, Spreaded, Late. indicates if work should be done soon as possible, work should be spreaded, or be done as late as possible. 
++ DueDate
+
+#WorkBlock
+> Represents a (part of a) single tasks of a planblock.
+> Is the length of one block as in UserSettings
+> Has a status with the following options: Planned, Executing, Done. default is planned. These updated accordingly so make a function for this
+> Has the same discription as its planblock
+> Belongs to a specific day. That day must be =< the duedate of the related planblock, and cannot be in the past
+* can be marked as Executing or Done by the user or the system
+* The day can be changed within the described boundaries
+
+#BreakBlock
+> Is a short or long break, and has a length in minutes as in UserSettings
+> Short break occurs after every WorkBlock
+> Long break occurs after every N Workblocks as in UserSettings, replacing that specific shortbreak
+
+#NotAvailableBlock
+> Represent a block of time in a day that is not plannable. Can be used to block Planner of planning work there.
+
+#Planner
+> Is not a model but a function class
+> Uses all relevant information of the objects above to make the planning for a specific user.
+> Tasks can be marked to be executed on a specific day of time, the planner should respect that
+> If planning is not possible because of a lack of time this will trigger a warning mentioning what the problem is
+> Planner should take due dates in account over set priorities over PlanTiming. 
+> Planner may replan work if neccesary, only if it is not started or done yet.
+* Workblocks can always be changed to day or time by the user.
+* Planner should have an option to replan work or tasks of wich the (due)date is in the past
+
+
+> Use the folowing description as a indication for the algorithm
+	- Create days between now and latest due date if they do not excist yet.
+	- Devide each day in block that can be planned, take non plannable time in account
+	- For each block to be planned take the plan type in account. Start from now to due date, or visa versa with planning, or spread it between them
+	- Only plan in available space
+	
+> Tasks can be marked to be executed on a specific day of time, the planner should respect that
+> If planning is not possible because of a lack of time this will trigger a warning mentioning what the problem is
+> Planner should take due dates in account over set priorities over PlanTiming. 
+> Planner may replan work if neccesary, only if it is not started or done yet.
