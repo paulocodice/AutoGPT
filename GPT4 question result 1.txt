@@ -1,0 +1,323 @@
+namespace Logic
+{
+    using System;
+    using System.Collections.Generic;
+    using System.ComponentModel.DataAnnotations;
+    using System.Globalization;
+    using System.Net.Mail;
+
+    public interface IUser
+    {
+        Guid Id { get; }
+    }
+
+    public class User : IUser
+    {
+        public Guid Id { get; private set; } = Guid.NewGuid();
+        public string Name { get; set; }
+        public string Surname { get; set; }
+        private string _email;
+        public string Email
+        {
+            get => _email;
+            set
+            {
+                if (IsValidEmail(value))
+                    _email = value;
+                else
+                    throw new ArgumentException("Invalid email address");
+            }
+        }
+        public UserSettings Settings { get; set; } = new UserSettings();
+        public Calendar Calendar { get; set; } = new Calendar();
+
+        public User()
+        {
+            Calendar.Owner = this;
+        }
+
+        private bool IsValidEmail(string email)
+        {
+            try
+            {
+                new MailAddress(email);
+                return true;
+            }
+            catch (FormatException)
+            {
+                return false;
+            }
+        }
+    }
+
+    public class UserSettings
+    {
+        public enum PlanningType
+        {
+            Pomodoro,
+            Custom
+        }
+    }
+
+    public class UserSettings
+    {
+        public UserSettings.PlanningType PlanningType { get; set; }
+        public DayOfWeek FirstDayOfWeek { get; set; } = DayOfWeek.Monday;
+        public TimeZoneInfo TimeZone { get; set; }
+        public int BlockLength { get; set; } = 20;
+        public int ShortBreakLength { get; set; } = 5;
+        public int LongBreakLength { get; set; } = 10;
+        public int LongBreakInterval { get; set; } = 3;
+
+
+        public UserSettings(TimeZoneInfo timeZone)
+        {
+            TimeZone = timeZone;
+        }
+    }
+
+    public class Subject
+    {
+        public Guid Id { get; private set; } = Guid.NewGuid();
+        public string Description { get; set; }
+        public string Color { get; set; }
+    }
+
+    public class Calendar
+    {
+        public User Owner { get; set; }
+        private List<Day> Days { get; set; } = new List<Day>();
+        public void AddDay(DateTime date)
+        {
+            if (date.Date < DateTime.UtcNow.Date)
+                throw new ArgumentException("Cannot add a day in the past");
+
+            if (date.Date > DateTime.UtcNow.Date.AddYears(1))
+                throw new ArgumentException("Cannot add a day more than one year from now");
+
+            if (Days.Exists(d => d.Date.Date == date.Date))
+                throw new ArgumentException("Duplicate date");
+
+            Days.Add(new Day(date, Owner.Settings));
+        }
+    }
+
+    public class Day
+    {
+        public Guid Id { get; private set; } = Guid.NewGuid();
+        public DateTime Date { get; private set; }
+        public UserSettings Settings { get; private set; }
+        public List<Block> Blocks { get; private set; } = new List<Block>();
+        public Day(DateTime date, UserSettings settings)
+        {
+            Date = date;
+            Settings = settings;
+        }
+
+        public int WeekNumber()
+        {
+            var cultureInfo = new CultureInfo("en-US");
+            var calendar = cultureInfo.Calendar;
+            var weekRule = cultureInfo.DateTimeFormat.CalendarWeekRule;
+            var firstDayOfWeek = Settings.FirstDayOfWeek;
+
+            return calendar.GetWeekOfYear(Date, weekRule, firstDayOfWeek);
+        }
+
+        public TimeSpan AvailableTime()
+        {
+            TimeSpan availableTime = TimeSpan.Zero;
+
+            for (int i = 0; i < Settings.BlockLength; i++)
+            {
+                DateTime currentBlockStart = Date.AddMinutes(i * Settings.BlockLength);
+                DateTime currentBlockEnd = currentBlockStart.AddMinutes(Settings.BlockLength);
+
+                if (!Blocks.Exists(b => b.StartTime <= currentBlockStart && b.EndTime >= currentBlockEnd))
+                {
+                    availableTime += TimeSpan.FromMinutes(Settings.BlockLength);
+                }
+            }
+
+            return availableTime;
+        }
+    }
+
+    public abstract class Block
+    {
+        public Guid Id { get; private set; } = Guid.NewGuid();
+        public Day ParentDay { get; set; }
+        public DateTime StartTime { get; set; }
+        public DateTime EndTime { get; set; }
+        public Subject Subject { get; set; }
+        public int Priority { get; set; } = 0;
+    }
+
+    public class PlanBlock : Block
+    {
+        public enum Status
+        {
+            New,
+            Planning,
+            Planned,
+            Done
+        }
+
+        public enum PlanTiming
+        {
+            Early,
+            Spread,
+            Late
+        }
+
+        public string Description { get; set; }
+        public string Notes { get; set; }
+        public PlanTiming Timing { get; set; }
+        public DateTime DueDate { get; set; }
+        public Status CurrentStatus { get; set; } = Status.New;
+        public List<PlanBlock> ChildPlanBlocks { get; set; } = new List<PlanBlock>();
+        public PlanBlock ParentPlanBlock { get; set; }
+        public List<WorkBlock> WorkBlocks { get; set; } = new List<WorkBlock>();
+
+        public TimeSpan TimeNeeded()
+        {
+            if (ChildPlanBlocks.Count == 0)
+                return WorkBlocks.Sum(w => w.EndTime - w.StartTime);
+            else
+                return ChildPlanBlocks.Sum(c => c.TimeNeeded());
+        }
+    }
+
+    public class WorkBlock : Block
+    {
+        public enum Status
+        {
+            Planned,
+            Executing,
+            Done
+        }
+        public PlanBlock ParentPlanBlock { get; set; }
+        public Status CurrentStatus { get; set; } = Status.Planned;
+
+        public void ChangeDay(Day newDay)
+        {
+            if (newDay.Date > ParentPlanBlock.DueDate)
+                throw new ArgumentException("New day is after the due date of the related PlanBlock");
+            if (newDay.Date < DateTime.UtcNow.Date)
+                throw new ArgumentException("New day is in the past");
+
+            ParentDay.Blocks.Remove(this);
+            ParentDay = newDay;
+            ParentDay.Blocks.Add(this);
+        }
+
+        public void SetStatus(Status newStatus)
+        {
+            CurrentStatus = newStatus;
+        }
+    }
+
+    public class BreakBlock : Block
+    {
+        public enum BreakType
+        {
+            Short,
+            Long
+        }
+        public BreakType Type { get; set; }
+
+        public BreakBlock(BreakType type, UserSettings settings)
+        {
+            Type = type;
+
+            if (type == BreakType.Short)
+                EndTime = StartTime.AddMinutes(settings.ShortBreakLength);
+            else
+                EndTime = StartTime.AddMinutes(settings.LongBreakLength);
+        }
+    }
+
+    public class NotAvailableBlock : Block
+    {
+    }
+
+    public class Planner
+    {
+        public void PlanWorkItems()
+        {
+            // Create days between now and the latest due date if they do not exist yet
+            DateTime currentDate = DateTime.UtcNow.Date;
+            DateTime latestDueDate = _user.Calendar.GetLatestDueDate();
+
+            while (currentDate <= latestDueDate)
+            {
+                _user.Calendar.EnsureDayExists(currentDate);
+                currentDate = currentDate.AddDays(1);
+            }
+
+            // Sort plan blocks by due date, priority, and plan timing
+            var sortedPlanBlocks = _user.Calendar.GetPlanBlocks().OrderBy(pb => pb.DueDate)
+                                                                .ThenByDescending(pb => pb.Priority)
+                                                                .ThenBy(pb => pb.Timing);
+
+            // Plan each block
+            foreach (var planBlock in sortedPlanBlocks)
+            {
+                if (planBlock.CurrentStatus != PlanBlock.Status.Planned)
+                {
+                    DateTime startSearchDate = planBlock.Timing == PlanBlock.PlanTiming.Late ? planBlock.DueDate : DateTime.UtcNow.Date;
+                    bool success = PlanWorkItem(planBlock, startSearchDate);
+
+                    if (!success)
+                    {
+                        // Trigger a warning mentioning what the problem is
+                        Console.WriteLine($"Warning: Unable to plan work item '{planBlock.Description}' due to lack of time.");
+                    }
+                }
+            }
+        }
+
+        private bool PlanWorkItem(PlanBlock planBlock, DateTime startSearchDate)
+        {
+            // Check if the startSearchDate is before the planBlock's due date
+            if (startSearchDate > planBlock.DueDate)
+                return false;
+            // Iterate through the days between the startSearchDate and the due date
+            for (DateTime date = startSearchDate; date <= planBlock.DueDate; date = date.AddDays(1))
+            {
+                Day day = _user.Calendar.GetDay(date);
+
+                if (day != null)
+                {
+                    // Divide each day into blocks that can be planned, taking non-plannable time into account
+                    List<TimeSlot> availableTimeSlots = day.GetAvailableTimeSlots(_user.Settings);
+
+                    // Try to plan the work item in the available time slots
+                    foreach (TimeSlot timeSlot in availableTimeSlots)
+                    {
+                        if (CanPlanWorkItem(planBlock, day, timeSlot))
+                        {
+                            AssignWorkItem(planBlock, day, timeSlot);
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            // If no suitable time slot was found, return false
+            return false;
+        }
+
+        private bool CanPlanWorkItem(PlanBlock planBlock, Day day, TimeSlot timeSlot)
+        {
+            // Check if the planBlock can be planned on the given day and time slot
+            return timeSlot.Duration >= planBlock.TimeNeeded();
+        }
+
+        private void AssignWorkItem(PlanBlock planBlock, Day day, TimeSlot timeSlot)
+        {
+            // Assign the work item to the given day and time slot
+            day.ScheduleWorkItem(planBlock, timeSlot);
+        }
+
+    }

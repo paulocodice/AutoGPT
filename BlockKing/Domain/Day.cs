@@ -9,6 +9,10 @@ using System.Threading.Tasks;
 
 namespace BlockKing.Data.Domain
 {
+    /// <summary>
+    /// Day is used as a holder for blocks on an specific date. It contains all planningblocks with a duedate of that d
+    /// </summary>
+    
     public partial class Day : IDbEntity //TODO only initializable via an user
     {
         public int Id { get; private set; }
@@ -36,8 +40,7 @@ namespace BlockKing.Data.Domain
         /// <summary>
         /// Returns the first day of the week and the weeknumber according to users preferred first day of week
         /// </summary>
-        /// <param name="day"> Day to get the weeknumber from </param>
-        /// <returns>int weeknumber</returns>
+
         private int GetWeek()
         {
             CultureInfo UserCulture = User.WeekSetting.PreferredFirstDay switch

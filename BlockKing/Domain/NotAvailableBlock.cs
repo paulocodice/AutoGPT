@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace BlockKing.Data.Domain
 {
-    internal class NotAvailableBlock
+    internal class NotAvailableBlock 
     {
     }
 }

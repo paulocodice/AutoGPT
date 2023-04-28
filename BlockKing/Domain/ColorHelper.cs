@@ -7,6 +7,7 @@ using Wacton.Unicolour;
 
 namespace BlockKing.Data.Domain
 {
+    //Colorhelper functions for the domain
     public static class ColorHelper
     {
         public static Unicolour RandomColor()

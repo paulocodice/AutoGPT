@@ -104,7 +104,7 @@ namespace BlockKing.Data.Domain
         {
             if (date <= DateOnly.FromDateTime(DateTime.Today))
             {
-                throw new ArgumentException($"Must be equal to- or greater than todays date ( {DateOnly.FromDateTime(DateTime.Today)} )", "date");
+                throw new ArgumentException($"Must be equal to- or greater than todays date ( {DateOnly.FromDateTime(DateTime.Today)} )", nameof(date));
             }
 
             if (Days.Exists(x => x.Date == date))

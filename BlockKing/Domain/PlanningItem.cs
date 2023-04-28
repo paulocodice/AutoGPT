@@ -6,13 +6,12 @@ using System.Threading.Tasks;
 
 namespace BlockKing.Data.Domain
 {
-    public class PlanningItem :IDbEntity
+    public class PlanningItem : IDbEntity
     {
         public int Id { get; set; }
         public PlanningBlock PlanningBlock { get; private set; }
         public string Descrition { get; private set; }
         public Status Status { get; private set; }
-        public PlanningTiming
         public WorkBlock? WorkBlock { get; private set; }
 
         /// <summary>
@@ -61,7 +60,7 @@ namespace BlockKing.Data.Domain
         {
             WorkBlock = workblock;
             Status = Status.Planned;
-            WorkDone()
+            WorkDone();
         }
 
         /// <summary>

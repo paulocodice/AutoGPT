@@ -42,7 +42,7 @@ namespace BlockKing.Data.Domain
 
         internal bool SetStatus(Status done)
         {
-            
+            return true;
         }
     }
 }
